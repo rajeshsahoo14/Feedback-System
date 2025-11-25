@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import api from '../config/api'; // Changed from axios
 import StarRating from './StarRating';
 import { Send, CheckCircle } from 'lucide-react';
 
@@ -50,11 +50,15 @@ const FeedbackForm = () => {
     setLoading(true);
 
     try {
-      await axios.post('/api/feedback', {
-        ...formData,
-        rating
+      const response = await api.post('/api/feedback', {
+        name: formData.name || 'Anonymous',
+        email: formData.email,
+        feedback: formData.feedback,
+        rating: rating,
+        productName: formData.productName
       });
 
+      console.log('Feedback submitted:', response.data);
       setSubmitted(true);
       
       // Reset form after 3 seconds
@@ -69,7 +73,12 @@ const FeedbackForm = () => {
         setSubmitted(false);
       }, 3000);
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to submit feedback');
+      console.error('Submit error:', error);
+      setError(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to submit feedback. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

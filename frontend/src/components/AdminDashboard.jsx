@@ -1,42 +1,46 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../config/api';
+import api, { API_URL } from '../config/api'; // Updated import
 import io from 'socket.io-client';
-import { API_URL } from '../config/api';
 import StarRating from './StarRating';
 import FeedbackStats from './FeedbackStats';
 import { LogOut, Trash2, Filter, RefreshCw, BarChart3, List } from 'lucide-react';
 
-const socket = io(API_URL);
-
+// Socket connection
+const socket = io(API_URL, {
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 5
+});
 
 const AdminDashboard = () => {
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('stats'); // 'stats' or 'list'
-  const [filters, setFilters] = useState({
-    productName: '',
-    sortBy: 'date',
-    minRating: ''
-  });
-
-  const { logout, admin } = useAuth();
-  const navigate = useNavigate();
+  // ... state declarations stay the same
 
   useEffect(() => {
     fetchFeedbacks();
     fetchStats();
 
     // Socket.IO listener for real-time updates
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+    });
+
     socket.on('newFeedback', (newFeedback) => {
+      console.log('New feedback received:', newFeedback);
       setFeedbacks(prev => [newFeedback, ...prev]);
-      fetchStats(); // Refresh stats when new feedback arrives
+      fetchStats();
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
     });
 
     return () => {
+      socket.off('connect');
       socket.off('newFeedback');
+      socket.off('connect_error');
     };
   }, []);
 
@@ -51,7 +55,7 @@ const AdminDashboard = () => {
       if (filters.sortBy === 'rating') params.append('sortBy', 'rating');
       if (filters.minRating) params.append('minRating', filters.minRating);
 
-      const { data } = await api.get('/api/admin/feedback', { params });
+      const { data } = await api.get(`/api/admin/feedback?${params.toString()}`);
       setFeedbacks(data.data);
       setLoading(false);
     } catch (error) {
@@ -66,7 +70,7 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const { data } = await axios.get('/api/admin/stats');
+      const { data } = await api.get('/api/admin/stats');
       setStats(data.data);
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -79,14 +83,16 @@ const AdminDashboard = () => {
     }
 
     try {
-      await axios.delete(`/api/admin/feedback/${id}`);
+      await api.delete(`/api/admin/feedback/${id}`);
       setFeedbacks(feedbacks.filter(feedback => feedback._id !== id));
-      fetchStats(); // Refresh stats after deletion
+      fetchStats();
     } catch (error) {
       console.error('Error deleting feedback:', error);
       alert('Failed to delete feedback');
     }
   };
+
+  // ... rest of component stays the same
 
   const handleLogout = () => {
     logout();

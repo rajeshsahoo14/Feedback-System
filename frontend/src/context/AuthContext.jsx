@@ -1,7 +1,5 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import axios from 'axios';
-import api from '../config/api';
-
+import api from '../config/api'; // Changed from axios
 
 const AuthContext = createContext();
 
@@ -21,42 +19,47 @@ export const AuthProvider = ({ children }) => {
     // Check if admin is logged in
     const adminData = localStorage.getItem('adminData');
     if (adminData) {
-      setAdmin(JSON.parse(adminData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${JSON.parse(adminData).token}`;
+      try {
+        const parsed = JSON.parse(adminData);
+        setAdmin(parsed);
+      } catch (error) {
+        console.error('Error parsing admin data:', error);
+        localStorage.removeItem('adminData');
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-    const { data } = await api.post('/api/admin/login', { email, password });
+      const { data } = await api.post('/api/admin/login', { email, password });
       setAdmin(data.data);
       localStorage.setItem('adminData', JSON.stringify(data.data));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.data.token}`;
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error);
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: error.response?.data?.message || 'Login failed. Please try again.' 
       };
     }
   };
 
   const register = async (username, email, password) => {
     try {
-      const { data } = await axios.post('/api/admin/register', { 
+      const { data } = await api.post('/api/admin/register', { 
         username, 
         email, 
         password 
       });
       setAdmin(data.data);
       localStorage.setItem('adminData', JSON.stringify(data.data));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.data.token}`;
       return { success: true };
     } catch (error) {
+      console.error('Register error:', error);
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Registration failed' 
+        message: error.response?.data?.message || 'Registration failed. Please try again.' 
       };
     }
   };
@@ -64,7 +67,6 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setAdmin(null);
     localStorage.removeItem('adminData');
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   const value = {
