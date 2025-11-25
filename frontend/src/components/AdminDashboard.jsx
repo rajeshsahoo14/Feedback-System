@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api, { API_URL } from '../config/api'; // Updated import
+import api, { API_URL } from '../config/api';
 import io from 'socket.io-client';
 import StarRating from './StarRating';
 import FeedbackStats from './FeedbackStats';
@@ -16,7 +16,25 @@ const socket = io(API_URL, {
 });
 
 const AdminDashboard = () => {
-  // ... state declarations stay the same
+  const navigate = useNavigate();
+  const { logout, admin } = useAuth();
+
+  // ✅ ALL STATE DECLARATIONS - THIS WAS MISSING!
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [stats, setStats] = useState({
+    totalFeedbacks: 0,
+    averageRating: 0,
+    productBreakdown: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('stats');
+  
+  // ✅ THIS WAS THE MISSING STATE CAUSING THE ERROR!
+  const [filters, setFilters] = useState({
+    productName: '',
+    sortBy: 'date',
+    minRating: ''
+  });
 
   useEffect(() => {
     fetchFeedbacks();
@@ -50,6 +68,7 @@ const AdminDashboard = () => {
 
   const fetchFeedbacks = async () => {
     try {
+      setLoading(true);
       const params = new URLSearchParams();
       if (filters.productName) params.append('productName', filters.productName);
       if (filters.sortBy === 'rating') params.append('sortBy', 'rating');
@@ -57,13 +76,13 @@ const AdminDashboard = () => {
 
       const { data } = await api.get(`/api/admin/feedback?${params.toString()}`);
       setFeedbacks(data.data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching feedbacks:', error);
       if (error.response?.status === 401) {
         logout();
         navigate('/admin/login');
       }
+    } finally {
       setLoading(false);
     }
   };
@@ -91,8 +110,6 @@ const AdminDashboard = () => {
       alert('Failed to delete feedback');
     }
   };
-
-  // ... rest of component stays the same
 
   const handleLogout = () => {
     logout();
@@ -133,7 +150,7 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600">Welcome back, {admin?.username}!</p>
+              <p className="text-sm text-gray-600">Welcome back, {admin?.username || 'Admin'}!</p>
             </div>
             <button
               onClick={handleLogout}

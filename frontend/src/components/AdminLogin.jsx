@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, User, LogIn, UserPlus } from 'lucide-react';
+import { Lock, Mail, User, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 
 const AdminLogin = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -29,19 +29,37 @@ const AdminLogin = () => {
     setLoading(true);
     setError('');
 
-    let result;
-    if (isRegister) {
-      result = await register(formData.username, formData.email, formData.password);
-    } else {
-      result = await login(formData.email, formData.password);
-    }
+    try {
+      let result;
+      
+      if (isRegister) {
+        // Validate registration data
+        if (!formData.username || formData.username.length < 3) {
+          setError('Username must be at least 3 characters');
+          setLoading(false);
+          return;
+        }
+        result = await register(formData.username, formData.email, formData.password);
+      } else {
+        result = await login(formData.email, formData.password);
+      }
 
-    if (result.success) {
-      navigate('/admin/dashboard');
-    } else {
-      setError(result.message);
+      console.log('Auth result:', result); // Debug log
+
+      if (result && result.success) {
+        // Give a small delay to ensure token is saved
+        setTimeout(() => {
+          navigate('/admin/dashboard');
+        }, 100);
+      } else {
+        setError(result?.message || 'Authentication failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -76,6 +94,7 @@ const AdminLogin = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Enter username"
                   required={isRegister}
+                  minLength="3"
                 />
               </div>
             </div>
@@ -121,8 +140,9 @@ const AdminLogin = () => {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -132,7 +152,10 @@ const AdminLogin = () => {
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
-              'Processing...'
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Processing...
+              </>
             ) : isRegister ? (
               <>
                 <UserPlus size={20} />
@@ -154,12 +177,17 @@ const AdminLogin = () => {
               setError('');
               setFormData({ username: '', email: '', password: '' });
             }}
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="text-blue-600 hover:text-blue-700 font-medium transition"
           >
             {isRegister
               ? 'Already have an account? Login'
               : "Don't have an account? Register"}
           </button>
+        </div>
+
+        {/* Debug info - remove in production */}
+        <div className="mt-4 text-xs text-gray-400 text-center">
+          Check browser console for debug logs
         </div>
       </div>
     </div>
