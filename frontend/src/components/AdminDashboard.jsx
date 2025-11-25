@@ -19,7 +19,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { logout, admin } = useAuth();
 
-  // ✅ ALL STATE DECLARATIONS - THIS WAS MISSING!
+  // State declarations
   const [feedbacks, setFeedbacks] = useState([]);
   const [stats, setStats] = useState({
     totalFeedbacks: 0,
@@ -28,8 +28,6 @@ const AdminDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('stats');
-  
-  // ✅ THIS WAS THE MISSING STATE CAUSING THE ERROR!
   const [filters, setFilters] = useState({
     productName: '',
     sortBy: 'date',
@@ -40,7 +38,6 @@ const AdminDashboard = () => {
     fetchFeedbacks();
     fetchStats();
 
-    // Socket.IO listener for real-time updates
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
     });
@@ -74,14 +71,31 @@ const AdminDashboard = () => {
       if (filters.sortBy === 'rating') params.append('sortBy', 'rating');
       if (filters.minRating) params.append('minRating', filters.minRating);
 
-      const { data } = await api.get(`/api/admin/feedback?${params.toString()}`);
-      setFeedbacks(data.data);
+      const response = await api.get(`/api/admin/feedback?${params.toString()}`);
+      console.log('📦 Feedbacks response:', response.data);
+
+      // Handle different response structures
+      let feedbackData = [];
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          feedbackData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          feedbackData = response.data.data;
+        } else if (response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
+          feedbackData = response.data.feedbacks;
+        }
+      }
+
+      console.log('✅ Processed feedbacks:', feedbackData.length);
+      setFeedbacks(feedbackData);
     } catch (error) {
-      console.error('Error fetching feedbacks:', error);
+      console.error('❌ Error fetching feedbacks:', error);
       if (error.response?.status === 401) {
         logout();
         navigate('/admin/login');
       }
+      // Set empty array on error to prevent undefined
+      setFeedbacks([]);
     } finally {
       setLoading(false);
     }
@@ -89,10 +103,46 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const { data } = await api.get('/api/admin/stats');
-      setStats(data.data);
+      const response = await api.get('/api/admin/stats');
+      console.log('📊 Stats response:', response.data);
+
+      // Handle different response structures
+      let statsData = {
+        totalFeedbacks: 0,
+        averageRating: 0,
+        productBreakdown: []
+      };
+
+      if (response.data) {
+        if (response.data.data) {
+          statsData = {
+            totalFeedbacks: response.data.data.totalFeedbacks || 0,
+            averageRating: response.data.data.averageRating || 0,
+            productBreakdown: Array.isArray(response.data.data.productBreakdown) 
+              ? response.data.data.productBreakdown 
+              : []
+          };
+        } else {
+          statsData = {
+            totalFeedbacks: response.data.totalFeedbacks || 0,
+            averageRating: response.data.averageRating || 0,
+            productBreakdown: Array.isArray(response.data.productBreakdown) 
+              ? response.data.productBreakdown 
+              : []
+          };
+        }
+      }
+
+      console.log('✅ Processed stats:', statsData);
+      setStats(statsData);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('❌ Error fetching stats:', error);
+      // Keep default stats structure on error
+      setStats({
+        totalFeedbacks: 0,
+        averageRating: 0,
+        productBreakdown: []
+      });
     }
   };
 
@@ -265,7 +315,7 @@ const AdminDashboard = () => {
 
             {/* Feedback List */}
             <div className="space-y-4">
-              {feedbacks.length === 0 ? (
+              {!Array.isArray(feedbacks) || feedbacks.length === 0 ? (
                 <div className="bg-white rounded-lg shadow-lg p-8 text-center">
                   <p className="text-gray-500 text-lg">No feedback found</p>
                 </div>
