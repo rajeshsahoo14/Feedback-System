@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import api from '../config/api';
 import io from 'socket.io-client';
+import { API_URL } from '../config/api';
 import StarRating from './StarRating';
 import FeedbackStats from './FeedbackStats';
 import { LogOut, Trash2, Filter, RefreshCw, BarChart3, List } from 'lucide-react';
 
-const socket = io('http://localhost:5000');
+const socket = io(API_URL);
+
 
 const AdminDashboard = () => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -49,7 +51,7 @@ const AdminDashboard = () => {
       if (filters.sortBy === 'rating') params.append('sortBy', 'rating');
       if (filters.minRating) params.append('minRating', filters.minRating);
 
-      const { data } = await axios.get(`/api/admin/feedback?${params.toString()}`);
+      const { data } = await api.get('/api/admin/feedback', { params });
       setFeedbacks(data.data);
       setLoading(false);
     } catch (error) {
