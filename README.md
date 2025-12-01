@@ -1,6 +1,6 @@
 # 📝 Feedback Collection Tool
 
-A modern, full-stack MERN application for collecting and managing user feedback with real-time updates and interactive analytics dashboard.
+A modern, full-stack MERN application for collecting and managing user feedback with real-time updates and interactive analytics dashboard. 
 
 ![Project Banner](https://img.shields.io/badge/MERN-Stack-green) ![License](https://img.shields.io/badge/license-MIT-blue)
 
